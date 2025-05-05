@@ -1,0 +1,129 @@
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '@/database/prisma.service';
+import { Prisma } from '{{prismaClient}}';
+import { Search{{modelClassName}}Dto } from '../dto/{{moduleName}}.schema';
+
+@Injectable()
+export class {{modelClassName}}Repository {
+  constructor(private prisma: PrismaService) {}
+
+  async findAll(searchParams: Search{{modelClassName}}Dto = { offset: 0, limit: 10 }) {
+    const { offset = 0, limit = 10 } = searchParams;
+    
+    // Build the where condition based on search parameters
+    const where: Prisma.{{modelClassName}}WhereInput = {};
+    
+    // Add search filters if provided
+    {{#each modelInfo.fields}}
+    {{#if (and 
+      (eq this.kind "scalar") 
+      (not (includes "id,createdAt,updatedAt,deletedAt,createdBy,updatedBy" this.name))
+      (or 
+        (and (eq this.type "String") (or this.isUnique (includes "name,title,slug,email,username,code,reference,description" this.name)))
+        (includes "status,type,category" this.name)
+        (eq this.type "Boolean")
+        (and (eq this.type "DateTime") (not (includes "createdAt,updatedAt,deletedAt" this.name)))
+      )
+    )}}
+    if (searchParams.{{this.name}}) {
+      {{#if (eq this.type "String")}}
+      where.{{this.name}} = {
+        contains: searchParams.{{this.name}},
+        mode: 'insensitive', // Case-insensitive search
+      };
+      {{else if (eq this.type "Boolean")}}
+      where.{{this.name}} = searchParams.{{this.name}};
+      {{else if (eq this.type "DateTime")}}
+      where.{{this.name}} = searchParams.{{this.name}};
+      {{else}}
+      where.{{this.name}} = searchParams.{{this.name}};
+      {{/if}}
+    }
+    {{/if}}
+    {{/each}}
+    
+    // Get total count with filters applied
+    const total = await this.prisma.{{modelVarName}}.count({ where });
+    
+    // Get paginated and filtered items
+    const items = await this.prisma.{{modelVarName}}.findMany({
+      where,
+      skip: offset,
+      take: limit,
+      orderBy: searchParams.orderName ? { [searchParams.orderName]: searchParams.orderDirect } : undefined,
+      select: {
+        id: true,
+        {{#each modelInfo.fields}}
+        {{#unless (or (eq this.name "id") (eq this.kind "object"))}}
+        {{this.name}}: true,
+        {{/unless}}
+        {{/each}}
+      },
+    });
+    
+    // Return paginated response
+    return {
+      total,
+      items,
+    };
+  }
+
+  async findOne(id: string) {
+    return this.prisma.{{modelVarName}}.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        {{#each modelInfo.fields}}
+        {{#unless (or (eq this.name "id") (eq this.kind "object"))}}
+        {{this.name}}: true,
+        {{/unless}}
+        {{/each}}
+      },
+    });
+  }
+
+  {{#each modelInfo.fields}}
+  {{#if this.isUnique}}
+  async findBy{{toPascal this.name}}({{this.name}}: {{#if (eq this.type "String")}}string{{else if (eq this.type "Int")}}number{{else if (eq this.type "Boolean")}}boolean{{else if (eq this.type "DateTime")}}Date{{else}}any{{/if}}) {
+    return this.prisma.{{../modelVarName}}.findUnique({
+      where: { {{this.name}} },
+    });
+  }
+  {{/if}}
+  {{/each}}
+
+  async create(data: Prisma.{{modelClassName}}CreateInput) {
+    return this.prisma.{{modelVarName}}.create({
+      data,
+      select: {
+        id: true,
+        {{#each modelInfo.fields}}
+        {{#unless (or (eq this.name "id") (eq this.kind "object"))}}
+        {{this.name}}: true,
+        {{/unless}}
+        {{/each}}
+      },
+    });
+  }
+
+  async update(id: string, data: Prisma.{{modelClassName}}UpdateInput) {
+    return this.prisma.{{modelVarName}}.update({
+      where: { id },
+      data,
+      select: {
+        id: true,
+        {{#each modelInfo.fields}}
+        {{#unless (or (eq this.name "id") (eq this.kind "object"))}}
+        {{this.name}}: true,
+        {{/unless}}
+        {{/each}}
+      },
+    });
+  }
+
+  async delete(id: string) {
+    return this.prisma.{{modelVarName}}.delete({
+      where: { id },
+    });
+  }
+}

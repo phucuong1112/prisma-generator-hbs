@@ -1,0 +1,117 @@
+import { 
+  Controller, 
+  Get, 
+  Post, 
+  Body, 
+  Patch, 
+  Param, 
+  Delete, 
+  HttpCode, 
+  HttpStatus,
+  Query,
+  UseGuards
+} from '@nestjs/common';
+import { {{moduleClassName}}Service } from './{{moduleName}}.service';
+import { Create{{modelClassName}}Dto, Update{{modelClassName}}Dto, {{modelClassName}}ResponseDto, Paginated{{modelClassName}}ResponseDto, Search{{modelClassName}}Dto } from './dto/{{moduleName}}.schema';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { Permissions } from '../auth/decorators/permissions.decorator';
+import { PermissionConst } from '@/types/enums/permission.enum';
+
+/**
+ * Controller for managing {{modelVarName}}.
+ * Handles endpoints for creating, retrieving, updating, and deleting {{modelVarName}}.
+ * Secured with JWT and permission-based guards.
+ */
+@ApiTags('{{moduleName}}')
+@UseGuards(JwtAuthGuard)
+@Controller('{{moduleName}}')
+export class {{moduleClassName}}Controller {
+  constructor(private readonly {{moduleName}}Service: {{moduleClassName}}Service) {}
+
+  /**
+   * Creates a new {{modelClassName}}.
+   * Requires '{{moduleName}}:create' permission.
+   * @param create{{modelClassName}}Dto Data for the new {{modelVarName}}.
+   * @returns The created {{modelVarName}}.
+   */
+  @Post()
+  @ApiOperation({ summary: 'Create a new {{modelVarName}}' })
+  @ApiResponse({ status: 201, description: '{{modelClassName}} created successfully', type: {{modelClassName}}ResponseDto })
+  @UseGuards(PermissionsGuard)
+  @Permissions(PermissionConst.{{toUpper modelInfo.name}}_CREATE)
+  async create(@Body() create{{modelClassName}}Dto: Create{{modelClassName}}Dto): Promise<{{modelClassName}}ResponseDto> {
+    return this.{{moduleName}}Service.create(create{{modelClassName}}Dto);
+  }
+
+  /**
+   * Retrieves a paginated list of {{moduleName}} based on search parameters.
+   * Requires '{{moduleName}}:read' permission.
+   * @param searchParams Search and pagination options.
+   * @returns Paginated list of {{moduleName}}.
+   */
+  @Get()
+  @ApiOperation({ summary: 'Get {{moduleName}} with search and pagination options' })
+  @ApiResponse({ status: 200, description: 'List of {{moduleName}}', type: Paginated{{modelClassName}}ResponseDto })
+  @UseGuards(PermissionsGuard)
+  @Permissions(PermissionConst.{{toUpper modelInfo.name}}_READ)
+  async findAll(@Query() searchParams: Search{{modelClassName}}Dto): Promise<Paginated{{modelClassName}}ResponseDto> {
+    return this.{{moduleName}}Service.findAll(searchParams);
+  }
+
+  /**
+   * Retrieves a {{modelVarName}} by its ID.
+   * Requires '{{moduleName}}:read' permission.
+   * @param id {{modelClassName}} ID.
+   * @returns The {{modelVarName}}.
+   */
+  @Get(':id')
+  @ApiOperation({ summary: 'Get a {{modelVarName}} by ID' })
+  @ApiParam({ name: 'id', description: '{{modelClassName}} ID' })
+  @ApiResponse({ status: 200, description: '{{modelClassName}} found', type: {{modelClassName}}ResponseDto })
+  @ApiResponse({ status: 404, description: '{{modelClassName}} not found' })
+  @UseGuards(PermissionsGuard)
+  @Permissions(PermissionConst.{{toUpper modelInfo.name}}_READ)
+  async findOne(@Param('id') id: string): Promise<{{modelClassName}}ResponseDto> {
+    return this.{{moduleName}}Service.findOne(id);
+  }
+
+  /**
+   * Updates a {{modelVarName}} by its ID.
+   * Requires '{{moduleName}}:update' permission.
+   * @param id {{modelClassName}} ID.
+   * @param update{{modelClassName}}Dto Data to update the {{modelVarName}}.
+   * @returns The updated {{modelVarName}}.
+   */
+  @Patch(':id')
+  @ApiOperation({ summary: 'Update a {{modelVarName}}' })
+  @ApiParam({ name: 'id', description: '{{modelClassName}} ID' })
+  @ApiResponse({ status: 200, description: '{{modelClassName}} updated successfully', type: {{modelClassName}}ResponseDto })
+  @ApiResponse({ status: 404, description: '{{modelClassName}} not found' })
+  @UseGuards(PermissionsGuard)
+  @Permissions(PermissionConst.{{toUpper modelInfo.name}}_UPDATE)
+  async update(
+    @Param('id') id: string,
+    @Body() update{{modelClassName}}Dto: Update{{modelClassName}}Dto,
+  ): Promise<{{modelClassName}}ResponseDto> {
+    return this.{{moduleName}}Service.update(id, update{{modelClassName}}Dto);
+  }
+
+  /**
+  * Deletes a {{modelVarName}} by its ID.
+  * Requires '{{moduleName}}:delete' permission.
+  * @param id {{modelClassName}} ID.
+  */
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete a {{modelVarName}}' })
+  @ApiParam({ name: 'id', description: '{{modelClassName}} ID' })
+  @ApiResponse({ status: 204, description: '{{modelClassName}} deleted successfully' })
+  @ApiResponse({ status: 404, description: '{{modelClassName}} not found' })
+  @UseGuards(PermissionsGuard)
+  @Permissions(PermissionConst.{{toUpper modelInfo.name}}_DELETE)
+  async remove(@Param('id') id: string): Promise<void> {
+    return this.{{moduleName}}Service.remove(id);
+  }
+}

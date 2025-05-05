@@ -1,0 +1,12 @@
+import { Module } from '@nestjs/common';
+import { {{moduleClassName}}Controller } from './{{moduleName}}.controller';
+import { {{moduleClassName}}Service } from './{{moduleName}}.service';
+import { PrismaService } from '@/database/prisma.service';
+import { {{toPascal modelInfo.name}}Repository } from './repositories/{{toKebab modelInfo.name}}.repository';
+
+@Module({
+  controllers: [{{moduleClassName}}Controller],
+  providers: [{{moduleClassName}}Service, {{toPascal modelInfo.name}}Repository, PrismaService],
+  exports: [{{moduleClassName}}Service],
+})
+export class {{moduleClassName}}Module {}

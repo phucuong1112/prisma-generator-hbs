@@ -1,0 +1,126 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { {{moduleClassName}}Controller } from './{{moduleName}}.controller';
+import { {{moduleClassName}}Service } from './{{moduleName}}.service';
+import { Create{{modelClassName}}Dto, Update{{modelClassName}}Dto, Search{{modelClassName}}Dto } from './dto/{{moduleName}}.schema';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { I18nService } from 'nestjs-i18n';
+
+describe('{{moduleClassName}}Controller', () => {
+  let controller: {{moduleClassName}}Controller;
+  let service: {{moduleClassName}}Service;
+
+  const mockJwtAuthGuard = { canActivate: jest.fn().mockReturnValue(true) };
+  const mockPermissionsGuard = { canActivate: jest.fn().mockReturnValue(true) };
+  const mockI18nService = { t: jest.fn().mockImplementation((key, options) => key) };
+
+  const mock{{modelClassName}} = {
+    id: 'test-id',
+    {{#each modelInfo.fields}}
+    {{#unless (or (eq this.name "id") (eq this.name "createdAt") (eq this.name "updatedAt") (eq this.name "deletedAt") (eq this.name "createdBy") (eq this.name "updatedBy"))}}
+    {{this.name}}: {{#if (eq this.type "String")}}'test-{{this.name}}'{{else if (eq this.type "Int")}}1{{else if (eq this.type "Boolean")}}true{{else if (eq this.type "DateTime")}}new Date('2023-01-01T00:00:00.000Z'){{else}}'test-value'{{/if}},
+    {{/unless}}
+    {{/each}}
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  const mockService = {
+    create: jest.fn().mockResolvedValue(mock{{modelClassName}}),
+    findAll: jest.fn().mockResolvedValue({ 
+      items: [mock{{modelClassName}}], 
+      total: 1 
+    }),
+    findOne: jest.fn().mockResolvedValue(mock{{modelClassName}}),
+    update: jest.fn().mockResolvedValue(mock{{modelClassName}}),
+    remove: jest.fn().mockResolvedValue(undefined),
+  };
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [{{moduleClassName}}Controller],
+      providers: [
+        { provide: {{moduleClassName}}Service, useValue: mockService },
+        { provide: I18nService, useValue: mockI18nService },
+      ],
+    })
+    .overrideGuard(JwtAuthGuard)
+    .useValue(mockJwtAuthGuard)
+    .overrideGuard(PermissionsGuard)
+    .useValue(mockPermissionsGuard)
+    .compile();
+
+    controller = module.get<{{moduleClassName}}Controller>({{moduleClassName}}Controller);
+    service = module.get<{{moduleClassName}}Service>({{moduleClassName}}Service);
+  });
+
+  it('should be defined', () => {
+    expect(controller).toBeDefined();
+  });
+
+  describe('create', () => {
+    it('should create a {{modelVarName}}', async () => {
+      const dto: Create{{modelClassName}}Dto = {
+        {{#each modelInfo.fields}}
+        {{#unless (or (eq this.name "id") (eq this.name "createdAt") (eq this.name "updatedAt") (eq this.name "deletedAt") (eq this.name "createdBy") (eq this.name "updatedBy") (eq this.kind "object"))}}
+        {{#if this.isRequired}}
+        {{this.name}}: {{#if (eq this.type "String")}}'test-{{this.name}}'{{else if (eq this.type "Int")}}1{{else if (eq this.type "Boolean")}}true{{else if (eq this.type "DateTime")}}new Date('2023-01-01T00:00:00.000Z'){{else}}'test-value'{{/if}},
+        {{/if}}
+        {{/unless}}
+        {{/each}}
+      };
+      
+      expect(await controller.create(dto)).toEqual(mock{{modelClassName}});
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(service.create).toHaveBeenCalledWith(dto);
+    });
+  });
+
+  describe('findAll', () => {
+    it('should return a paginated list of {{moduleName}}', async () => {
+      const searchParams: Search{{modelClassName}}Dto = { offset: 0, limit: 10 };
+      const expected = { items: [mock{{modelClassName}}], total: 1 };
+      
+      expect(await controller.findAll(searchParams)).toEqual(expected);
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(service.findAll).toHaveBeenCalledWith(searchParams);
+    });
+  });
+
+  describe('findOne', () => {
+    it('should return a single {{modelVarName}}', async () => {
+      const id = 'test-id';
+      
+      expect(await controller.findOne(id)).toEqual(mock{{modelClassName}});
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(service.findOne).toHaveBeenCalledWith(id);
+    });
+  });
+
+  describe('update', () => {
+    it('should update a {{modelVarName}}', async () => {
+      const id = 'test-id';
+      const dto: Update{{modelClassName}}Dto = {
+        {{#each modelInfo.fields}}
+        {{#unless (or (eq this.name "id") (eq this.name "createdAt") (eq this.name "updatedAt") (eq this.name "deletedAt") (eq this.name "createdBy") (eq this.name "updatedBy") (eq this.kind "object"))}}
+        {{this.name}}: {{#if (eq this.type "String")}}'updated-{{this.name}}'{{else if (eq this.type "Int")}}'2'{{else if (eq this.type "Boolean")}}false{{else if (eq this.type "DateTime")}}new Date('2023-02-01T00:00:00.000Z'){{else}}'updated-value'{{/if}},
+        {{/unless}}
+        {{/each}}
+      };
+      
+      expect(await controller.update(id, dto)).toEqual(mock{{modelClassName}});
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(service.update).toHaveBeenCalledWith(id, dto);
+    });
+  });
+
+  describe('remove', () => {
+    it('should remove a {{modelVarName}}', async () => {
+      const id = 'test-id';
+      
+      await controller.remove(id);
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(service.remove).toHaveBeenCalledWith(id);
+    });
+  });
+});
