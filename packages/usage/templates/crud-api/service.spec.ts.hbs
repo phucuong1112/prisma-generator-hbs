@@ -1,0 +1,220 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { {{moduleClassName}}Service } from './{{moduleName}}.service';
+import { {{modelClassName}}Repository } from './repositories/{{toKebab modelInfo.name}}.repository';
+import { LogonService } from '../auth/logon.service';
+import { I18nService } from 'nestjs-i18n';
+import { LogicException } from '@/common/exceptions/logic.exception';
+import { Prisma } from '{{prismaClient}}';
+import { Create{{modelClassName}}Dto, Update{{modelClassName}}Dto } from './dto/{{moduleName}}.schema';
+
+describe('{{moduleClassName}}Service', () => {
+  let service: {{moduleClassName}}Service;
+  let repository: {{modelClassName}}Repository;
+  let logonService: LogonService;
+  let i18n: I18nService;
+
+  const mock{{modelClassName}} = {
+    id: 'test-id',
+    {{#each modelInfo.fields}}
+    {{#unless (or (eq this.name "id") (eq this.name "createdAt") (eq this.name "updatedAt") (eq this.name "deletedAt") (eq this.name "createdBy") (eq this.name "updatedBy") (eq this.kind "object"))}}
+    {{this.name}}: {{#if (eq this.type "String")}}'test-{{this.name}}'{{else if (eq this.type "Int")}}1{{else if (eq this.type "Boolean")}}true{{else if (eq this.type "DateTime")}}new Date('2023-01-01T00:00:00.000Z'){{else}}'test-value'{{/if}},
+    {{/unless}}
+    {{/each}}
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  const mockRepository = {
+    findAll: jest.fn().mockResolvedValue({ items: [mock{{modelClassName}}], total: 1 }),
+    findOne: jest.fn().mockResolvedValue(mock{{modelClassName}}),
+    create: jest.fn().mockResolvedValue(mock{{modelClassName}}),
+    update: jest.fn().mockResolvedValue(mock{{modelClassName}}),
+    delete: jest.fn().mockResolvedValue(undefined),
+    {{#each modelInfo.fields}}
+    {{#if this.isUnique}}
+    findBy{{toPascal this.name}}: jest.fn().mockResolvedValue(null),
+    {{/if}}
+    {{/each}}
+  };
+
+  const mockLogonService = {
+    currentUser: { id: 'user-id' }
+  };
+
+  const mockI18nService = {
+    t: jest.fn().mockImplementation((key, options) => key)
+  };
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        {{moduleClassName}}Service,
+        { provide: {{modelClassName}}Repository, useValue: mockRepository },
+        { provide: LogonService, useValue: mockLogonService },
+        { provide: I18nService, useValue: mockI18nService },
+      ],
+    }).compile();
+
+    service = module.get<{{moduleClassName}}Service>({{moduleClassName}}Service);
+    repository = module.get<{{modelClassName}}Repository>({{modelClassName}}Repository);
+    logonService = module.get<LogonService>(LogonService);
+    i18n = module.get<I18nService>(I18nService);
+  });
+
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
+
+  describe('findAll', () => {
+    it('should return paginated results', async () => {
+      const searchParams = { offset: 0, limit: 10 };
+      const expected = { items: [mock{{modelClassName}}], total: 1 };
+      
+      expect(await service.findAll(searchParams)).toEqual(expected);
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(repository.findAll).toHaveBeenCalledWith(searchParams);
+    });
+  });
+
+  describe('findOne', () => {
+    it('should return a {{modelVarName}} when it exists', async () => {
+      const id = 'test-id';
+      
+      expect(await service.findOne(id)).toEqual(mock{{modelClassName}});
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(repository.findOne).toHaveBeenCalledWith(id);
+    });
+
+    it('should throw an exception when {{modelVarName}} does not exist', async () => {
+      const id = 'non-existent-id';
+      mockRepository.findOne.mockResolvedValueOnce(null);
+      
+      await expect(service.findOne(id)).rejects.toThrow(LogicException);
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(repository.findOne).toHaveBeenCalledWith(id);
+    });
+  });
+
+  describe('create', () => {
+    it('should create a {{modelVarName}}', async () => {
+      const createDto = {
+        {{#each modelInfo.fields}}
+        {{#unless (or (eq this.name "id") (eq this.name "createdAt") (eq this.name "updatedAt") (eq this.name "deletedAt") (eq this.name "createdBy") (eq this.name "updatedBy"))}}
+        {{#if this.isRequired}}
+        {{this.name}}: {{#if (eq this.type "String")}}'test-{{this.name}}'{{else if (eq this.type "Int")}}1{{else if (eq this.type "Boolean")}}true{{else if (eq this.type "DateTime")}}new Date('2023-01-01T00:00:00.000Z'){{else}}'test-value'{{/if}},
+        {{/if}}
+        {{/unless}}
+        {{/each}}
+      } as Create{{modelClassName}}Dto;
+      
+      expect(await service.create(createDto)).toEqual(mock{{modelClassName}});
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(repository.create).toHaveBeenCalledWith({
+        ...createDto,
+        createdBy: 'user-id',
+      });
+    });
+
+    {{#each modelInfo.fields}}
+    {{#if this.isUnique}}
+    it('should throw an exception when {{this.name}} already exists', async () => {
+      const createDto = {
+        {{this.name}}: {{#if (eq this.type "String")}}'existing-{{this.name}}'{{else if (eq this.type "Int")}}1{{else if (eq this.type "Boolean")}}true{{else if (eq this.type "DateTime")}}new Date('2023-01-01T00:00:00.000Z'){{else}}'existing-value'{{/if}},
+      } as Create{{../modelClassName}}Dto;
+      
+      mockRepository.findBy{{toPascal this.name}}.mockResolvedValueOnce(mock{{../modelClassName}});
+      await expect(service.create(createDto)).rejects.toThrow(LogicException);
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(repository.findBy{{toPascal this.name}}).toHaveBeenCalledWith(createDto.{{this.name}});
+    });
+    {{/if}}
+    {{/each}}
+
+    it('should handle Prisma unique constraint errors', async () => {
+      const createDto = {
+        {{#each modelInfo.fields}}
+        {{#unless (or (eq this.name "id") (eq this.name "createdAt") (eq this.name "updatedAt") (eq this.name "deletedAt") (eq this.name "createdBy") (eq this.name "updatedBy"))}}
+        {{#if this.isRequired}}
+        {{this.name}}: {{#if (eq this.type "String")}}'test-{{this.name}}'{{else if (eq this.type "Int")}}1{{else if (eq this.type "Boolean")}}true{{else if (eq this.type "DateTime")}}new Date('2023-01-01T00:00:00.000Z'){{else}}'test-value'{{/if}},
+        {{/if}}
+        {{/unless}}
+        {{/each}}
+      } as Create{{modelClassName}}Dto;
+      
+      const prismaError = new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+        code: 'P2002',
+        clientVersion: '2.0.0',
+        meta: { target: [{{#each modelInfo.fields}} {{#if (and this.isUnique (not (eq this.name "id")))}}'{{this.name}}'{{/if}}{{/each}}] }
+      });
+      
+      mockRepository.create.mockRejectedValueOnce(prismaError);
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      await expect(service.create(createDto)).rejects.toThrow(LogicException);
+    });
+  });
+
+  describe('update', () => {
+    it('should update a {{modelVarName}}', async () => {
+      const id = 'test-id';
+      const updateDto = {
+        {{#each modelInfo.fields}}
+        {{#unless (or (eq this.name "id") (eq this.name "createdAt") (eq this.name "updatedAt") (eq this.name "deletedAt") (eq this.name "createdBy") (eq this.name "updatedBy") (eq this.kind "object"))}}
+        {{this.name}}: {{#if (eq this.type "String")}}'updated-{{this.name}}'{{else if (eq this.type "Int")}}2{{else if (eq this.type "Boolean")}}false{{else if (eq this.type "DateTime")}}new Date('2023-02-01T00:00:00.000Z'){{else}}'updated-value'{{/if}},
+        {{/unless}}
+        {{/each}}
+      } as Update{{modelClassName}}Dto;
+      
+      expect(await service.update(id, updateDto)).toEqual(mock{{modelClassName}});
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(repository.update).toHaveBeenCalledWith(id, {
+        ...updateDto,
+        updatedBy: 'user-id',
+      });
+    });
+
+    it('should throw an exception when {{modelVarName}} does not exist', async () => {
+      const id = 'non-existent-id';
+      const updateDto = {} as Update{{modelClassName}}Dto;
+      
+      mockRepository.findOne.mockResolvedValueOnce(null);
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      await expect(service.update(id, updateDto)).rejects.toThrow(LogicException);
+    });
+
+    it('should handle Prisma unique constraint errors', async () => {
+      const id = 'test-id';
+      const updateDto = {
+        {{#with (find modelInfo.fields (field) field.isUnique)}}
+        {{name}}: {{#if (eq this.type "String")}}'duplicate-{{name}}'{{else if (eq this.type "Int")}}999{{else if (eq this.type "Boolean")}}true{{else if (eq this.type "DateTime")}}new Date('2023-03-01T00:00:00.000Z'){{else}}'duplicate-value'{{/if}},
+        {{/with}}
+      } as Update{{modelClassName}}Dto;
+      
+      const prismaError = new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+        code: 'P2002',
+        clientVersion: '2.0.0',
+        meta: { target: [{{#each modelInfo.fields}} {{#if (and this.isUnique (not (eq this.name "id")))}}'{{this.name}}'{{/if}}{{/each}}] }
+      });
+      
+      mockRepository.update.mockRejectedValueOnce(prismaError);
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      await expect(service.update(id, updateDto)).rejects.toThrow(LogicException);
+    });
+  });
+
+  describe('remove', () => {
+    it('should remove a {{modelVarName}}', async () => {
+      const id = 'test-id';
+      
+      await service.remove(id);
+      expect(repository.delete).toHaveBeenCalledWith(id);
+    });
+
+    it('should throw an exception when {{modelVarName}} does not exist', async () => {
+      const id = 'non-existent-id';
+      
+      mockRepository.findOne.mockResolvedValueOnce(null);
+      
+      await expect(service.remove(id)).rejects.toThrow(LogicException);
+    });
+  });
+});

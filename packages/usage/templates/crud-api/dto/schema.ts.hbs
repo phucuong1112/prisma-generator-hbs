@@ -1,0 +1,32 @@
+import { z } from 'zod';
+import { createZodDto } from 'nestjs-zod';
+import { OrderBySchema, PaginatedResponseSchema, PaginationSchema } from '@/common/dto/pagination.dto';
+
+// Base schema for {{modelClassName}}
+export const {{modelClassName}}Schema = z.object({
+  {{{generateZodSchemaProperties modelInfo modelClassName}}}
+});
+
+// Schema for creating a new {{modelClassName}}
+export const Create{{modelClassName}}Schema = {{modelClassName}}Schema;
+export class Create{{modelClassName}}Dto extends createZodDto(Create{{modelClassName}}Schema) {}
+
+// Schema for updating an existing {{modelClassName}}
+export const Update{{modelClassName}}Schema = {{modelClassName}}Schema.partial();
+export class Update{{modelClassName}}Dto extends createZodDto(Update{{modelClassName}}Schema) {}
+
+// Schema for {{modelClassName}} responses (includes id and timestamps)
+export const {{modelClassName}}ResponseSchema = {{modelClassName}}Schema.extend({
+  {{{generateResponseSchemaProperties modelInfo modelClassName}}}
+});
+export class {{modelClassName}}ResponseDto extends createZodDto({{modelClassName}}ResponseSchema) {}
+
+// Schema for searching {{modelClassName}} entities
+export const Search{{modelClassName}}Schema = PaginationSchema.extend({
+  {{{generateSearchSchemaProperties modelInfo modelClassName modelClassName}}}
+}).merge(OrderBySchema);
+export class Search{{modelClassName}}Dto extends createZodDto(Search{{modelClassName}}Schema) {}
+
+// Schema for paginated {{modelClassName}} responses
+export const Paginated{{modelClassName}}ResponseSchema = PaginatedResponseSchema({{modelClassName}}ResponseSchema);
+export class Paginated{{modelClassName}}ResponseDto extends createZodDto(Paginated{{modelClassName}}ResponseSchema) {}

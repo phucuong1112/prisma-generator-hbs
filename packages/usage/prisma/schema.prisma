@@ -1,34 +1,126 @@
-generator custom_generator {
-  provider = "npx prisma-generator-hbs"
-  output   = "../types"
-}
-
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
+generator crud_api {
+  provider       = "npx prisma-generator-hbs"
+  output         = "../generated/crud-api"
+  template       = "crud-api"
+  templateDir    = "../../templates"
+  genUnitTest    = true
+  // filteredModels = "*"
+  // filteredModels = "User,Role"
+  filteredModels = ["User", "Role", "Permission"]
+  prismaClient   = "@prisma/client"
+}
+
 model User {
-  id    Int     @id @default(autoincrement())
-  email String  @unique
-  name  String?
+  id             String            @id @default(ulid()) @db.VarChar(26)
+  firstName      String            @db.VarChar(128)
+  lastName       String            @db.VarChar(128)
+  email          String            @unique @db.VarChar(256)
+  avatar         String?           @db.VarChar(256)
+  status         String            @db.VarChar(16)
+  lastLogin      DateTime?         @db.Timestamptz
+  lockTime       DateTime?         @db.Timestamptz
+  password       String            @db.VarChar(64)
+  roles          UserRole[]
+  emailVerified  Boolean           @default(false)
+  oauthProviders OAuthConnection[]
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @default(now()) @updatedAt
+  deletedAt      DateTime?         @db.Timestamptz
+  createdBy      String?           @db.VarChar(26)
+  updatedBy      String?           @db.VarChar(26)
+
+  @@map("users")
 }
 
-enum NotificationType {
-  newPosts
-  newComments
-  newFollowers
-  reply
-  heartOnPost
-  heartOnComment
-  heartOnReply
+model Role {
+  id              String           @id @default(ulid()) @db.VarChar(26)
+  name            String           @unique @db.VarChar(256)
+  slug            String           @unique @db.VarChar(256)
+  description     String?          @db.VarChar(256)
+  users           UserRole[]
+  rolePermissions RolePermission[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @default(now()) @updatedAt
+  deletedAt       DateTime?        @db.Timestamptz
+  createdBy       String?          @db.VarChar(26)
+  updatedBy       String?          @db.VarChar(26)
+
+  @@map("roles")
 }
 
-enum Language {
-  Typescript
-  Javascript
-  Rust
-  Go
-  Python
-  Cpp
+model UserRole {
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String   @db.VarChar(26)
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  roleId    String   @db.VarChar(26)
+  createdAt DateTime @default(now())
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model Permission {
+  id              String           @id @default(ulid()) @db.VarChar(26)
+  name            String           @unique @db.VarChar(256)
+  slug            String           @unique @db.VarChar(256)
+  description     String?          @db.VarChar(256)
+  rolePermissions RolePermission[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @default(now()) @updatedAt
+  deletedAt       DateTime?        @db.Timestamptz
+  createdBy       String?          @db.VarChar(26)
+  updatedBy       String?          @db.VarChar(26)
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String     @id @default(ulid()) @db.VarChar(26)
+  roleId       String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permissionId String
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+
+  @@unique([roleId, permissionId]) // Ensure a role can only have a permission once
+  @@map("role_permissions")
+}
+
+model OAuthConnection {
+  id         String    @id @default(ulid()) @db.VarChar(26)
+  provider   String    @db.VarChar(64) // e.g., "google", "github"
+  providerId String    @db.VarChar(256) // The unique ID from the OAuth provider
+  userId     String    @db.VarChar(26)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @default(now()) @updatedAt
+  deletedAt  DateTime? @db.Timestamptz
+  createdBy  String?   @db.VarChar(26)
+  updatedBy  String?   @db.VarChar(26)
+
+  @@unique([provider, providerId]) // Ensure a provider ID is unique per provider
+  @@map("oauth_connections")
+}
+
+model AuditLog {
+  id        String   @id @default(ulid()) @db.VarChar(26)
+  timestamp DateTime @default(now()) @db.Timestamptz()
+
+  userId     String  @db.VarChar(26)
+  action     String  @db.VarChar(256)
+  entityType String? @db.VarChar(256)
+  entityId   String? @db.VarChar(256)
+  changes    Json?
+  context    Json?
+  feature    String  @db.VarChar(256)
+
+  @@index([timestamp])
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@map("audit_logs")
 }

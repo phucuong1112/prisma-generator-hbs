@@ -1,9 +1,9 @@
 import { generatorHandler, GeneratorOptions } from '@prisma/generator-helper'
 import { logger } from '@prisma/sdk'
-import path from 'path'
 import { GENERATOR_NAME } from './constants'
-import { genEnum } from './helpers/genEnum'
-import { writeFileSafely } from './utils/writeFileSafely'
+import { BaseGenerator } from './generators/base.generator'
+import { CustomGenerator } from './generators/custom.generator'
+import * as fs from 'fs'
 
 const { version } = require('../package.json')
 
@@ -17,15 +17,18 @@ generatorHandler({
     }
   },
   onGenerate: async (options: GeneratorOptions) => {
-    options.dmmf.datamodel.enums.forEach(async (enumInfo) => {
-      const tsEnum = genEnum(enumInfo)
+    logger.info(`${GENERATOR_NAME}:onGenerate`)
 
-      const writeLocation = path.join(
-        options.generator.output?.value!,
-        `${enumInfo.name}.ts`,
-      )
+    const template = options.generator.config.template as string || 'custom';
 
-      await writeFileSafely(writeLocation, tsEnum)
-    })
+    const templateGenerator = new CustomGenerator(options, template);
+    const templateFolder = templateGenerator.getTemplateFolder();
+
+    if (!fs.existsSync(templateFolder)) {
+      logger.info(`${GENERATOR_NAME}:Template folder not found: ${templateFolder}`);
+      return;
+    }
+    await templateGenerator.generate();
   },
 })
+

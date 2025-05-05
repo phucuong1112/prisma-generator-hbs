@@ -1,0 +1,156 @@
+import { Injectable } from '@nestjs/common';
+import { Create{{modelClassName}}Dto, Update{{modelClassName}}Dto, Paginated{{modelClassName}}ResponseDto, Search{{modelClassName}}Dto, {{modelClassName}}ResponseDto, {{modelClassName}}ResponseSchema } from './dto/{{moduleName}}.schema';
+import { Prisma } from '{{prismaClient}}';
+import { LogicException } from '@/common/exceptions/logic.exception';
+import { I18nService } from 'nestjs-i18n';
+import { I18nTranslations } from '@/i18n/i18n.generated';
+import { {{modelClassName}}Repository } from './repositories/{{toKebab modelInfo.name}}.repository';
+import { LogonService } from '../auth/logon.service';
+
+@Injectable()
+export class {{moduleClassName}}Service {
+  constructor(
+    private readonly {{modelVarName}}Repository: {{modelClassName}}Repository,
+    private readonly i18n: I18nService<I18nTranslations>,
+    private readonly logonService: LogonService
+  ) {}
+
+  async findAll(searchParams: Search{{modelClassName}}Dto = { offset: 0, limit: 10 }): Promise<Paginated{{modelClassName}}ResponseDto> {
+    const result = await this.{{modelVarName}}Repository.findAll(searchParams);
+    return result as Paginated{{modelClassName}}ResponseDto;
+  }
+
+  async findOne(id: string): Promise<{{modelClassName}}ResponseDto> {
+    const {{modelVarName}} = await this.{{modelVarName}}Repository.findOne(id);
+
+    if (!{{modelVarName}}) {
+      throw new LogicException(
+        { 
+          message: this.i18n.t('message.ENTITY_NOT_FOUND', { 
+            args: {
+              entity: this.i18n.t('model.{{modelClassName}}'),
+              id: id
+            }
+          }), 
+          code: 'ENTITY_NOT_FOUND' 
+        },
+        404 // Not Found status code
+      );
+    }
+
+    return {{modelClassName}}ResponseSchema.parse({{modelVarName}});
+  }
+
+  async create(create{{modelClassName}}Dto: Create{{modelClassName}}Dto): Promise<{{modelClassName}}ResponseDto> {
+    {{#each modelInfo.fields}}
+    {{#if this.isUnique}}
+    // Check if {{../modelVarName}} with the same {{this.name}} already exists
+    const existing{{../modelClassName}}By{{toPascal this.name}} = await this.{{../modelVarName}}Repository.findBy{{toPascal this.name}}(create{{../modelClassName}}Dto.{{this.name}});
+    if (existing{{../modelClassName}}By{{toPascal this.name}}) {
+      throw new LogicException(
+        { 
+          message: this.i18n.t('message.DUPLICATED', {
+            args: {
+              name: '{{this.name}}',
+              value: create{{../modelClassName}}Dto.{{this.name}}
+            }
+          }), 
+          code: 'DUPLICATED' 
+        },
+        400 // Bad Request status code
+      );
+    }
+    {{/if}}
+    {{/each}}
+    
+    try {
+      const {{modelVarName}} = await this.{{modelVarName}}Repository.create({
+        ...create{{modelClassName}}Dto,
+        createdBy: this.logonService.currentUser?.id,
+      });
+      return {{modelClassName}}ResponseSchema.parse({{modelVarName}});
+    } catch (error) {
+      // Handle Prisma unique constraint errors
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2002') {
+          const target = error.meta?.target as string[];
+          {{#each modelInfo.fields}}
+          {{#if this.isUnique}}
+          if (target?.includes('{{this.name}}')) {
+            throw new LogicException(
+              { 
+                message: this.i18n.t('message.DUPLICATED', {
+                  args: {
+                    name: '{{this.name}}',
+                    value: create{{../modelClassName}}Dto.{{this.name}}
+                  }
+                }), 
+                code: 'DUPLICATED' 
+              },
+              400 // Bad Request status code
+            );
+          }
+          {{/if}}
+          {{/each}}
+        }
+      }
+      // Re-throw other errors
+      throw error;
+    }
+  }
+
+  async update(id: string, update{{modelClassName}}Dto: Update{{modelClassName}}Dto): Promise<{{modelClassName}}ResponseDto> {
+    // Check if {{modelVarName}} exists
+    await this.findOne(id);
+
+    // Create update data object
+    const updateData: Prisma.{{modelClassName}}UpdateInput = {};
+    
+    // Only add fields that are present in the DTO
+    {{#each modelInfo.fields}}
+    {{#unless (or (eq this.name "id") (eq this.name "createdAt") (eq this.name "updatedAt") (eq this.name "deletedAt") (eq this.name "createdBy") (eq this.name "updatedBy") (eq this.kind "object"))}}
+    if (update{{../modelClassName}}Dto.{{this.name}} !== undefined) updateData.{{this.name}} = update{{../modelClassName}}Dto.{{this.name}};
+    {{/unless}}
+    {{/each}}
+    
+    // Add updatedBy field
+    updateData.updatedBy = this.logonService.currentUser?.id;
+
+    try {
+      const updated{{modelClassName}} = await this.{{modelVarName}}Repository.update(id, updateData);
+      return {{modelClassName}}ResponseSchema.parse(updated{{modelClassName}});
+    } catch (error) {
+      // Handle Prisma unique constraint errors
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2002') {
+          const target = error.meta?.target as string[];
+          {{#each modelInfo.fields}}
+          {{#if this.isUnique}}
+          if (target?.includes('{{this.name}}')) {
+            throw new LogicException(
+              { 
+                message: this.i18n.t('message.DUPLICATED', { 
+                  args: { 
+                    name: '{{this.name}}', 
+                    value: update{{../modelClassName}}Dto.{{this.name}} 
+                  } 
+                }), 
+                code: 'DUPLICATED' 
+              },
+              400 // Bad Request status code
+            );
+          }
+          {{/if}}
+          {{/each}}
+        }
+      }
+      // Re-throw other errors
+      throw error;
+    }
+  }
+
+  async remove(id: string): Promise<void> {
+    await this.findOne(id);
+    await this.{{modelVarName}}Repository.delete(id);
+  }
+}
