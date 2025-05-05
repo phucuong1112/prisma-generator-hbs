@@ -50,6 +50,10 @@ jobs:
         with:
           node-version: 22.x
           registry-url: https://registry.npmjs.org
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v2.0.1
+        with:
+          version: 9.15.9
       - uses: actions/cache@v4
         with:
           path: "**/node_modules"
