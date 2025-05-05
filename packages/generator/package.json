@@ -39,9 +39,9 @@
   "homepage": "Link to homepage or github readme here",
   "repository": {
     "type": "git",
-    "url": "Repo link here"
+    "url": "git@github.com:phucuong1112/prisma-generator-hbs.git"
   },
-  "author": "Your Name <Your Email>",
+  "author": "phucuong1112@gmail.com",
   "keywords": [
     "prisma",
     "prisma2",
@@ -73,5 +73,8 @@
         }
       ]
     ]
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
