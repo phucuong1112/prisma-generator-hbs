@@ -1,7 +1,7 @@
 {
   "name": "prisma-generator-hbs",
   "description": "Provide a description about your generator",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "main": "dist/generator.js",
   "license": "MIT",
   "bin": {
