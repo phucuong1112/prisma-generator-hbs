@@ -4,6 +4,7 @@ import { GENERATOR_NAME } from './constants'
 import { BaseGenerator } from './generators/base.generator'
 import { CustomGenerator } from './generators/custom.generator'
 import * as fs from 'fs'
+import { createPrettierConfig } from './utils/formatFile'
 
 const { version } = require('../package.json')
 
@@ -19,16 +20,18 @@ generatorHandler({
   onGenerate: async (options: GeneratorOptions) => {
     logger.info(`${GENERATOR_NAME}:onGenerate`)
 
-    const template = options.generator.config.template as string || 'custom';
+    createPrettierConfig({}, options.generator.output?.value || '../generated')
+    const template = (options.generator.config.template as string) || 'custom'
 
-    const templateGenerator = new CustomGenerator(options, template);
-    const templateFolder = templateGenerator.getTemplateFolder();
+    const templateGenerator = new CustomGenerator(options, template)
+    const templateFolder = templateGenerator.getTemplateFolder()
 
     if (!fs.existsSync(templateFolder)) {
-      logger.info(`${GENERATOR_NAME}:Template folder not found: ${templateFolder}`);
-      return;
+      logger.info(
+        `${GENERATOR_NAME}:Template folder not found: ${templateFolder}`,
+      )
+      return
     }
-    await templateGenerator.generate();
+    await templateGenerator.generate()
   },
 })
-

@@ -80,3 +80,19 @@ export function getTemplates(options, model) {
     return false;
   }
 }
+
+export function getAllTemplates(options, models) {
+  console.log('getAllTemplates', options, models);
+  const moduleFolder = 'all';
+
+  const data = {};
+
+  const templates = [
+    {
+      templateFile: 'language.yml.hbs',
+      destFile: [moduleFolder, `language.yml`],
+      data,
+    }
+  ];
+  return templates;
+}
