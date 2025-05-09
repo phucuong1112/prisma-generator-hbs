@@ -1,0 +1,18 @@
+# Models
+{{#each models}}
+{{ this.dbName }}:
+  en: "{{this.name}}"
+  vi: "{{this.name}}"
+{{/each}}
+
+# Fields
+{{#each models}}
+# {{this.dbName}}: {{this.name}} fields
+  {{#each this.fields}}
+    {{#if (eq this.kind "scalar")}}
+{{this.name}}:
+  en: "{{this.name}}"
+  vi: "{{this.name}}"
+    {{/if}}
+  {{/each}}
+{{/each}}

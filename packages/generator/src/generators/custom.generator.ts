@@ -19,7 +19,7 @@ export class CustomGenerator extends BaseGenerator {
   }
 
   async generate(): Promise<void> {
-    logger.info(`* ${this.templateName}: Generating custom API`)
+    logger.info(`* ${this.templateName}: Generating files...`)
 
     // Process configuration
     let filteredModels: string[] = ['*']
@@ -46,6 +46,7 @@ export class CustomGenerator extends BaseGenerator {
     const filterModelByName = filteredModels.filter(
       (model) => !model.startsWith('/') && !model.endsWith('/'),
     )
+    const filtersModels = [];
     for await (const modelInfo of this.options.dmmf.datamodel.models) {
       const regexMatches = filterModelByRegex.some((model) => {
         const patternWithoutSlashes = model.slice(1, -1)
@@ -64,6 +65,7 @@ export class CustomGenerator extends BaseGenerator {
         regexMatches
       ) {
         this.generateModel(modelInfo)
+        filtersModels.push(modelInfo);
       }
     }
 
@@ -71,7 +73,13 @@ export class CustomGenerator extends BaseGenerator {
       `* ${this.templateName}: Formatting generated files (${this.options.generator.output?.value})`,
     )
     await formatFolder(this.options.generator.output?.value!)
-    logger.info(`* ${this.templateName}: Custom API generation completed`)
+    logger.info(`* ${this.templateName}: Generate model completed`)
+
+    // Generate all models
+    if (filtersModels.length > 0) {
+      await this.generateModels(filtersModels)
+    }
+    logger.info(`* ${this.templateName}: Generate models completed`)
   }
 
   async generateModel(modelInfo: DMMF.Model) {
@@ -90,6 +98,12 @@ export class CustomGenerator extends BaseGenerator {
     }
     // import generatorFnFile and call function to get template definition
     const generatorFn = require(generatorFnFilePath)
+    if (!generatorFn.getTemplates) {
+      logger.info(
+        `Generator function file ${generatorFnFile} does not export getTemplates(options, modelInfo) function`,
+      )
+      return
+    };
     const templateDefinition:
       | boolean
       | {
@@ -116,6 +130,73 @@ export class CustomGenerator extends BaseGenerator {
           : [template.destFile]
         const data = template.data || {}
         data.modelInfo = modelInfo
+
+        const destFilePath = path.join(
+          this.options.generator.output?.value!,
+          ...destFile,
+        )
+        // Create module folder if not exists
+        const destFileDir = path.dirname(destFilePath)
+        fs.mkdirSync(destFileDir, { recursive: true })
+        // Generate file
+        promises.push(
+          generateFile(templateFolder, templateFile, destFilePath, data),
+        )
+      }
+    }
+
+    await Promise.all(promises)
+  }
+
+  async generateModels(modelInfos: DMMF.Model[]) {
+    const generatorFnFile =
+      (this.options.generator.config.generatorFn as string) || 'generator.js'
+
+    let templateFolder = this.getTemplateFolder()
+
+    const generatorFnFilePath = path.join(templateFolder, generatorFnFile)
+    // check the generatorFnFile exists
+    if (!fs.existsSync(generatorFnFilePath)) {
+      logger.error(
+        `Generator function file ${generatorFnFile} not found in template folder ${templateFolder}`,
+      )
+      return
+    }
+    // import generatorFnFile and call function to get template definition
+    const generatorFn = require(generatorFnFilePath)
+    if (!generatorFn.getAllTemplates) {
+      logger.info(
+        `Generator function file ${generatorFnFile} does not export getAllTemplates(options, modelInfos)  function`,
+      )
+      return
+    };
+
+    const templateDefinition:
+      | boolean
+      | {
+          templateFile: string
+          destFile: string
+          data: Record<string, unknown>
+        }[] = generatorFn.getAllTemplates(this.options, modelInfos)
+
+    if (!templateDefinition) {
+      logger.info(
+        `  - Template definition not found for all models`,
+      )
+      return
+    }
+
+    logger.info('  - Continue generating files for all model: ')
+
+    const promises = []
+    if (Array.isArray(templateDefinition)) {
+      for (const template of templateDefinition) {
+        const templateFile = template.templateFile
+        const destFile = Array.isArray(template.destFile)
+        ? template.destFile
+        : [template.destFile]
+        const data = template.data || {}
+        data.models = modelInfos;
 
         const destFilePath = path.join(
           this.options.generator.output?.value!,
