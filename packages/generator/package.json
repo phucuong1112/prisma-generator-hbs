@@ -48,6 +48,7 @@
     "generator"
   ],
   "release": {
+    "repositoryUrl": "https://github.com/phucuong1112/prisma-generator-hbs.git",
     "branches": [
       "main"
     ],
